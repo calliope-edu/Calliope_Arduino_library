@@ -73,6 +73,8 @@ Calliope_SmartShield::Calliope_SmartShield() {
     buttonState = 0;
     lastButtonState = 0;
     memset(framebuffer, 0, sizeof(framebuffer));
+    memset(&txFrame, 0, sizeof(txFrame));
+    memset(&rxFrame, 0, sizeof(rxFrame));
 }
 
 Calliope_SmartShield::~Calliope_SmartShield() {
@@ -104,12 +106,19 @@ bool Calliope_SmartShield::isConnected() {
 }
 
 void* Calliope_SmartShield::pushPacket(uint8_t service_num, uint16_t service_cmd, uint8_t size) {
+    uint8_t packetSize = ((size + 4 + 3) & ~3);
+    
+    // Check for buffer overflow (240 bytes max in txFrame.data)
+    if (txFrame.size + packetSize > 240) {
+        return nullptr;
+    }
+    
     uint8_t* dst = txFrame.data + txFrame.size;
     *dst++ = size;
     *dst++ = service_num;
     *dst++ = service_cmd & 0xFF;
     *dst++ = service_cmd >> 8;
-    txFrame.size += ((size + 4 + 3) & ~3);
+    txFrame.size += packetSize;
     return dst;
 }
 
@@ -121,16 +130,20 @@ void Calliope_SmartShield::transmitFrame() {
 }
 
 void Calliope_SmartShield::processResponse() {
-    if (rxFrame.crc == JDSPI_MAGIC && rxFrame.size > 0) {
+    if (rxFrame.crc == JDSPI_MAGIC && rxFrame.size > 0 && rxFrame.size <= 240) {
         jd_packet_t* pkt = (jd_packet_t*)rxFrame.data;
         
         if (pkt->service_number == gamepadServiceNum && 
-            pkt->service_command == JD_GET(JD_REG_READING)) {
+            pkt->service_command == JD_GET(JD_REG_READING) &&
+            pkt->service_size <= 236) {  // Validate packet size
             
             lastButtonState = buttonState;
             buttonState = 0;
             
             int numButtons = pkt->service_size / 2;
+            // Limit to max 7 buttons to prevent buffer overrun
+            if (numButtons > 7) numButtons = 7;
+            
             for (int i = 0; i < numButtons; i++) {
                 uint8_t buttonIdx = pkt->data[i * 2];
                 uint8_t pressure = pkt->data[i * 2 + 1];
@@ -144,7 +157,7 @@ void Calliope_SmartShield::processResponse() {
 }
 
 void Calliope_SmartShield::setPalette(uint32_t* palette) {
-    if (!connected) return;
+    if (!connected || !palette) return;
     
     memset(&txFrame, 0, sizeof(txFrame));
     txFrame.device_identifier = deviceId;
@@ -152,6 +165,8 @@ void Calliope_SmartShield::setPalette(uint32_t* palette) {
     
     void* data = pushPacket(displayServiceNum, 
                            JD_SET(JD_INDEXED_SCREEN_REG_PALETTE), 64);
+    if (!data) return;  // Buffer overflow protection
+    
     memcpy(data, palette, 64);
     transmitFrame();
 }
@@ -196,11 +211,14 @@ uint8_t Calliope_SmartShield::getPixel(uint16_t x, uint16_t y) {
 void Calliope_SmartShield::fillRect(uint16_t x, uint16_t y, uint16_t w, uint16_t h, uint8_t color) {
     // Clip to screen boundaries
     if (x >= SHIELD_WIDTH || y >= SHIELD_HEIGHT) return;
-    if (x + w > SHIELD_WIDTH) w = SHIELD_WIDTH - x;
-    if (y + h > SHIELD_HEIGHT) h = SHIELD_HEIGHT - y;
+    if (w == 0 || h == 0) return;
     
-    for (uint16_t py = y; py < y + h; py++) {
-        for (uint16_t px = x; px < x + w; px++) {
+    // Prevent integer overflow by clamping before addition
+    uint16_t endX = (x > SHIELD_WIDTH - w) ? SHIELD_WIDTH : x + w;
+    uint16_t endY = (y > SHIELD_HEIGHT - h) ? SHIELD_HEIGHT : y + h;
+    
+    for (uint16_t py = y; py < endY; py++) {
+        for (uint16_t px = x; px < endX; px++) {
             setPixel(px, py, color);
         }
     }
@@ -225,7 +243,14 @@ void Calliope_SmartShield::transmitFramebuffer(bool verbose) {
     
     // Send pixel data in batches of 3 columns
     for (int startCol = 0; startCol < SHIELD_WIDTH; startCol += 3) {
-        while (digitalRead(PIN_DC) == LOW) {}
+        // Wait for flow control with timeout (max 100ms)
+        unsigned long timeout = millis() + 100;
+        while (digitalRead(PIN_DC) == LOW) {
+            if (millis() > timeout) {
+                connected = false;  // Connection lost
+                return;
+            }
+        }
         
         memset(&txFrame, 0, sizeof(txFrame));
         txFrame.device_identifier = deviceId;
@@ -235,6 +260,7 @@ void Calliope_SmartShield::transmitFramebuffer(bool verbose) {
             int col = startCol + batch;
             void* data = pushPacket(displayServiceNum, 
                                    JD_INDEXED_SCREEN_CMD_SET_PIXELS, 60);
+            if (!data) return;  // Buffer overflow protection
             memcpy(data, &framebuffer[col * 60], 60);
         }
         
@@ -286,7 +312,7 @@ void Calliope_SmartShield::drawText(int16_t x, int16_t y, const char* text, uint
     int16_t cursorY = y;
     int charWidth = 6 * size;
     int charHeight = 8 * size;
-    bool drawBg = (bg != 255);
+    bool drawBg = (bg != SHIELD_TRANSPARENT_BG);
     
     while (*text) {
         if (*text == '\n') {

@@ -46,6 +46,7 @@
 // ========== Display Configuration ==========
 #define SHIELD_WIDTH  160
 #define SHIELD_HEIGHT 120
+#define SHIELD_TRANSPARENT_BG 255  // Use as bg parameter for transparent text
 
 // ========== JACDAC Protocol Structures ==========
 
@@ -91,8 +92,9 @@ public:
     void transmitFramebuffer(bool verbose = false);
     
     // Text rendering (5x7 font)
+    // bg: Background color, or SHIELD_TRANSPARENT_BG (255) for transparent
     void drawText(int16_t x, int16_t y, const char* text, uint8_t color, 
-                  uint8_t bg = 255, uint8_t size = 1);
+                  uint8_t bg = SHIELD_TRANSPARENT_BG, uint8_t size = 1);
     void drawChar(int16_t x, int16_t y, char c, uint8_t color, uint8_t bg, 
                   uint8_t size = 1);
     

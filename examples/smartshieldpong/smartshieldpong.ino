@@ -135,7 +135,6 @@ void loop() {
     char buf[20];
     sprintf(buf, "Score: %d", score);
     shield.drawText(40, 65, buf, 5, 0, 1);
-    shield.drawText(20, 90, "Press A", 1, 0, 1);
     shield.transmitFramebuffer();
     delay(3000);
     return;
