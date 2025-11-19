@@ -194,8 +194,13 @@ uint8_t Calliope_SmartShield::getPixel(uint16_t x, uint16_t y) {
 }
 
 void Calliope_SmartShield::fillRect(uint16_t x, uint16_t y, uint16_t w, uint16_t h, uint8_t color) {
-    for (uint16_t py = y; py < y + h && py < SHIELD_HEIGHT; py++) {
-        for (uint16_t px = x; px < x + w && px < SHIELD_WIDTH; px++) {
+    // Clip to screen boundaries
+    if (x >= SHIELD_WIDTH || y >= SHIELD_HEIGHT) return;
+    if (x + w > SHIELD_WIDTH) w = SHIELD_WIDTH - x;
+    if (y + h > SHIELD_HEIGHT) h = SHIELD_HEIGHT - y;
+    
+    for (uint16_t py = y; py < y + h; py++) {
+        for (uint16_t px = x; px < x + w; px++) {
             setPixel(px, py, color);
         }
     }

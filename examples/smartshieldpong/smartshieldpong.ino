@@ -18,7 +18,7 @@ Calliope_SmartShield shield;
 
 // Game state
 int ballX = 80, ballY = 60;
-int ballVX = 2, ballVY = 1;
+int ballVX = 4, ballVY = 2;
 int paddleY = 50;
 int score = 0;
 bool gameActive = false;
@@ -57,9 +57,9 @@ void showTitleScreen() {
 void resetBall() {
   ballX = 80;
   ballY = 60;
-  ballVX = (random(2) == 0) ? -2 : 2;
+  ballVX = (random(2) == 0) ? -3 : 3;
   ballVY = random(-2, 3);
-  if (ballVY == 0) ballVY = 1;
+  if (ballVY == 0) ballVY = 2;
 }
 
 void loop() {
@@ -94,7 +94,7 @@ void loop() {
   }
   
   // Move paddle
-  if (shield.upPressed() && paddleY > 0) {
+  if (shield.upPressed() && paddleY > 15) {
     paddleY -= 3;
   }
   if (shield.downPressed() && paddleY < 90) {
@@ -106,9 +106,9 @@ void loop() {
   ballY += ballVY;
   
   // Ball collision with top/bottom
-  if (ballY <= 0 || ballY >= 115) {
+  if (ballY <= 15 || ballY >= 117) {
     ballVY = -ballVY;
-    ballY = constrain(ballY, 0, 115);
+    ballY = constrain(ballY, 15, 117);
   }
   
   // Ball collision with right wall (bounce back)
@@ -124,7 +124,7 @@ void loop() {
     score++;
     
     // Speed up slightly
-    if (ballVX < 4) ballVX++;
+    if (ballVX < 5) ballVX++;
   }
   
   // Ball missed - game over
@@ -137,12 +137,15 @@ void loop() {
     shield.drawText(40, 65, buf, 5, 0, 1);
     shield.drawText(20, 90, "Press A", 1, 0, 1);
     shield.transmitFramebuffer();
-    delay(100);
+    delay(3000);
     return;
   }
   
   // Draw game
   shield.clearFramebuffer(0);
+  
+  // Draw header bar (top 12 pixels)
+  shield.fillRect(0, 0, 160, 12, 8);
   
   // Draw paddle (left side)
   shield.fillRect(5, paddleY, 5, 30, 3);
@@ -150,17 +153,17 @@ void loop() {
   // Draw ball
   shield.fillRect(ballX - 2, ballY - 2, 4, 4, 1);
   
-  // Draw center line
-  for (int y = 0; y < 120; y += 10) {
-    shield.fillRect(78, y, 4, 5, 8);
+  // Draw center line (starting below header)
+  for (int y = 15; y < 120; y += 10) {
+    shield.fillRect(78, y, 4, 5, 9);
   }
   
-  // Draw score
+  // Draw score (on header bar)
   char buf[10];
   sprintf(buf, "%d", score);
-  shield.drawText(5, 5, buf, 5, 0, 1);
+  shield.drawText(5, 2, buf, 1, 8, 1);
   
   shield.transmitFramebuffer();
   
-  delay(30);  // ~33 FPS
+  delay(10);  // ~100 FPS
 }
