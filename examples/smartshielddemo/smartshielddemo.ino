@@ -70,30 +70,30 @@ void loop() {
   shield.drawText(5, 40, buf, 3, 0, 1);
   
   // Visual feedback - color blocks for pressed buttons
+  // D-pad on the left
+  int dpadX = 30, dpadY = 75;
+  if (shield.leftPressed()) shield.fillRect(dpadX - 20, dpadY, 15, 10, 5);
+  if (shield.rightPressed()) shield.fillRect(dpadX + 5, dpadY, 15, 10, 5);
+  if (shield.upPressed()) shield.fillRect(dpadX - 5, dpadY - 12, 10, 12, 5);
+  if (shield.downPressed()) shield.fillRect(dpadX - 5, dpadY + 10, 10, 12, 5);
+  // Center dot
+  shield.fillRect(dpadX - 2, dpadY + 3, 4, 4, 1);
+  
+  // Action buttons on the right
   if (shield.aPressed()) {
-    shield.fillRect(10, 60, 30, 20, 2);  // Red
-    shield.drawText(15, 65, "A", 1, 2, 1);
+    shield.fillRect(100, 60, 30, 20, 2);  // Red
+    shield.drawText(105, 65, "A", 1, 2, 1);
   }
   
   if (shield.bPressed()) {
-    shield.fillRect(50, 60, 30, 20, 4);  // Blue
-    shield.drawText(55, 65, "B", 1, 4, 1);
+    shield.fillRect(100, 85, 30, 20, 4);  // Blue
+    shield.drawText(105, 90, "B", 1, 4, 1);
   }
   
   if (shield.menuPressed()) {
-    shield.fillRect(90, 60, 40, 20, 6);  // Magenta
-    shield.drawText(95, 65, "MENU", 1, 6, 1);
+    shield.fillRect(100, 110, 40, 10, 6);  // Magenta
+    shield.drawText(102, 111, "MENU", 1, 6, 1);
   }
-  
-  // D-pad visual
-  int cx = 75, cy = 95;  // Center position
-  if (shield.leftPressed()) shield.fillRect(cx - 20, cy, 15, 10, 5);
-  if (shield.rightPressed()) shield.fillRect(cx + 5, cy, 15, 10, 5);
-  if (shield.upPressed()) shield.fillRect(cx - 5, cy - 15, 10, 12, 5);
-  if (shield.downPressed()) shield.fillRect(cx - 5, cy + 3, 10, 12, 5);
-  
-  // Center dot
-  shield.fillRect(cx - 2, cy + 2, 4, 4, 1);
   
   // Send framebuffer to display
   shield.transmitFramebuffer();
